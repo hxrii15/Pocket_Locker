@@ -1,19 +1,21 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDgt0tqrJZ861xTh8k89PDp4zjPuUNDHEg",
+  authDomain: "pocket-locker-644aa.firebaseapp.com",
+  projectId: "pocket-locker-644aa",
+  storageBucket: "pocket-locker-644aa.firebasestorage.app",
+  messagingSenderId: "613209813018",
+  appId: "1:613209813018:web:f31ae9eb50b302997e61a3",
+  measurementId: "G-XNJ8W4DNFG"
 };
 
-const missingConfig = Object.values(firebaseConfig).some((value) => !value);
-
-export const app = missingConfig ? null : initializeApp(firebaseConfig);
-export const auth = app ? getAuth(app) : null;
-export const db = app ? getFirestore(app) : null;
-export const isFirebaseConfigured = !missingConfig;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
