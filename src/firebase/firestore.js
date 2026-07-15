@@ -1,14 +1,4 @@
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { get, push, ref, remove, serverTimestamp, set, update } from 'firebase/database';
 import { db } from './config.js';
 import { decryptPassword, encryptPassword } from '../utils/encryption.js';
 
@@ -18,56 +8,50 @@ const requireDb = () => {
 };
 
 export async function ensureUserProfile(user) {
-  await setDoc(
-    doc(requireDb(), 'users', user.uid),
-    {
-      profile: {
-        displayName: user.displayName || '',
-        avatarUrl: user.photoURL || '',
-        bio: '',
-        createdAt: serverTimestamp(),
-      },
-    },
-    { merge: true },
-  );
-}
-
-export async function saveUserProfile(uid, profile) {
-  await setDoc(doc(requireDb(), 'users', uid), { profile }, { merge: true });
-}
-
-export async function fetchUserProfile(uid) {
-  const snapshot = await getDoc(doc(requireDb(), 'users', uid));
-  return snapshot.exists() ? snapshot.data().profile || null : null;
-}
-
-export async function fetchAccounts(uid) {
-  const snapshot = await getDocs(collection(requireDb(), 'users', uid, 'accounts'));
-  return snapshot.docs.map((accountDoc) => {
-    const data = accountDoc.data();
-    return {
-      id: accountDoc.id,
-      ...data,
-      password: decryptPassword(data.encryptedPassword, uid),
-    };
+  await set(ref(requireDb(), `users/${user.uid}/profile`), {
+    displayName: user.displayName || '',
+    avatarUrl: user.photoURL || '',
+    bio: '',
+    createdAt: serverTimestamp(),
   });
 }
 
+export async function saveUserProfile(uid, profile) {
+  await set(ref(requireDb(), `users/${uid}/profile`), profile);
+}
+
+export async function fetchUserProfile(uid) {
+  const snapshot = await get(ref(requireDb(), `users/${uid}/profile`));
+  return snapshot.exists() ? snapshot.val() : null;
+}
+
+export async function fetchAccounts(uid) {
+  const snapshot = await get(ref(requireDb(), `users/${uid}/accounts`));
+  const accounts = snapshot.val() || {};
+
+  return Object.entries(accounts).map(([id, data]) => ({
+    id,
+    ...data,
+    password: decryptPassword(data.encryptedPassword, uid),
+  }));
+}
+
 export async function createAccount(uid, account) {
-  const payload = toFirestorePayload(account, uid, true);
-  const ref = await addDoc(collection(requireDb(), 'users', uid, 'accounts'), payload);
-  return ref.id;
+  const payload = toRealtimePayload(account, uid, true);
+  const accountRef = push(ref(requireDb(), `users/${uid}/accounts`));
+  await set(accountRef, payload);
+  return accountRef.key;
 }
 
 export async function updateAccount(uid, id, account) {
-  await updateDoc(doc(requireDb(), 'users', uid, 'accounts', id), toFirestorePayload(account, uid));
+  await update(ref(requireDb(), `users/${uid}/accounts/${id}`), toRealtimePayload(account, uid));
 }
 
 export async function deleteAccount(uid, id) {
-  await deleteDoc(doc(requireDb(), 'users', uid, 'accounts', id));
+  await remove(ref(requireDb(), `users/${uid}/accounts/${id}`));
 }
 
-function toFirestorePayload(account, uid, includeCreatedAt = false) {
+function toRealtimePayload(account, uid, includeCreatedAt = false) {
   const domain = account.serviceName?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
 
   return {
