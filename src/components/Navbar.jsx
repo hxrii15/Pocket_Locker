@@ -10,8 +10,12 @@ export default function Navbar({ search, onSearch }) {
   const location = useLocation();
 
   const handleLogout = async () => {
-    await logout();
-    toast.success('Signed out.');
+    try {
+      await logout();
+      toast.success('Signed out.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to sign out.');
+    }
   };
 
   return (
@@ -22,9 +26,9 @@ export default function Navbar({ search, onSearch }) {
         </Link>
         {onSearch && (
           <label className="relative w-full md:max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ecto" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ecto" />
             <input
-              className="ghost-input pl-10"
+              className="ghost-input search-input"
               value={search}
               onChange={(event) => onSearch(event.target.value)}
               placeholder="Search services"

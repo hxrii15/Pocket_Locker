@@ -6,8 +6,8 @@ import { ensureUserProfile } from '../firebase/firestore.js';
 import { logout } from '../firebase/auth.js';
 
 const AuthContext = createContext(null);
-const WARNING_MS = 13 * 60 * 1000;
-const TIMEOUT_MS = 15 * 60 * 1000;
+const WARNING_MS = 58 * 60 * 1000;
+const TIMEOUT_MS = 60 * 60 * 1000;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -25,7 +25,14 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
-    return onAuthStateChanged(auth, async (nextUser) => {
+    let settled = false;
+    const fallbackTimer = window.setTimeout(() => {
+      if (!settled) setLoading(false);
+    }, 8000);
+
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      settled = true;
+      clearTimeout(fallbackTimer);
       setUser(nextUser);
       setLoading(false);
 
@@ -37,6 +44,11 @@ export function AuthProvider({ children }) {
         }
       }
     });
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -52,8 +64,12 @@ export function AuthProvider({ children }) {
         toast('Session expires in 2 minutes due to inactivity.', { icon: '!' });
       }, WARNING_MS);
       timeoutTimer = window.setTimeout(async () => {
-        await logout();
-        toast.error('Signed out after 15 minutes of inactivity.');
+        try {
+          await logout();
+          toast.error('Signed out after 60 minutes of inactivity.');
+        } catch (error) {
+          toast.error(error.message || 'Unable to sign out.');
+        }
       }, TIMEOUT_MS);
     };
 

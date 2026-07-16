@@ -16,6 +16,17 @@ const initialState = {
   error: null,
 };
 
+const DATA_TIMEOUT_MS = 10000;
+
+function withTimeout(promise, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), DATA_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case 'loading':
@@ -34,11 +45,15 @@ export function VaultProvider({ children }) {
   const { user } = useAuth();
 
   const loadAccounts = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      dispatch({ type: 'loaded', payload: [] });
+      return;
+    }
     dispatch({ type: 'loading' });
 
     try {
-      dispatch({ type: 'loaded', payload: await fetchAccounts(user.uid) });
+      const accounts = await withTimeout(fetchAccounts(user.uid), 'Vault is taking too long to load. Check your connection and try again.');
+      dispatch({ type: 'loaded', payload: accounts });
     } catch (error) {
       dispatch({ type: 'error', payload: error.message });
       toast.error(error.message);
@@ -47,7 +62,12 @@ export function VaultProvider({ children }) {
 
   const addAccount = useCallback(
     async (account) => {
-      await createAccount(user.uid, account);
+      if (!user) {
+        toast.error('Unable to save account. Please sign in.');
+        return;
+      }
+
+      await withTimeout(createAccount(user.uid, account), 'Saving is taking too long. Check your database rules and connection, then try again.');
       toast.success('Account saved.');
       await loadAccounts();
     },
@@ -56,7 +76,12 @@ export function VaultProvider({ children }) {
 
   const editAccount = useCallback(
     async (id, account) => {
-      await updateFirestoreAccount(user.uid, id, account);
+      if (!user) {
+        toast.error('Unable to update account. Please sign in.');
+        return;
+      }
+
+      await withTimeout(updateFirestoreAccount(user.uid, id, account), 'Updating is taking too long. Check your database rules and connection, then try again.');
       toast.success('Account updated.');
       await loadAccounts();
     },
@@ -65,7 +90,12 @@ export function VaultProvider({ children }) {
 
   const removeAccount = useCallback(
     async (id) => {
-      await deleteFirestoreAccount(user.uid, id);
+      if (!user) {
+        toast.error('Unable to delete account. Please sign in.');
+        return;
+      }
+
+      await withTimeout(deleteFirestoreAccount(user.uid, id), 'Deleting is taking too long. Check your database rules and connection, then try again.');
       toast.success('Account deleted.');
       await loadAccounts();
     },
